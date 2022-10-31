@@ -1,5 +1,6 @@
 package org.squiot.bank.operation;
 
+import org.squiot.bank.exception.InsufficientBalanceException;
 import org.squiot.bank.exception.NegativeAmountException;
 import org.squiot.bank.operation.data.OperationDAO;
 
@@ -27,6 +28,23 @@ public class OperationService {
         final Operation operation = new Operation(OperationType.DEPOSIT, accountId, amount, LocalDateTime.now(clock), updatedBalance);
 
         return operationDAO.create(operation);
+
+    }
+
+
+    public Operation withdrawal(UUID accountId, BigDecimal amount) throws InsufficientBalanceException, NegativeAmountException {
+        if (amount.compareTo(BigDecimal.ZERO) < 0)
+            throw new NegativeAmountException("Amount's value shouldn't be negative.");
+
+        final BigDecimal balance = getBalanceFromLastOperationByAccountId(accountId);
+
+        if (balance.compareTo(amount) < 0)
+            throw new InsufficientBalanceException("Balance is insufficient for this withdrawal.");
+
+        final BigDecimal updatedBalance = balance.subtract(amount);
+        final Operation operation = new Operation(OperationType.WITHDRAWAL, accountId, amount, LocalDateTime.now(clock), updatedBalance);
+        return operationDAO.create(operation);
+
     }
 
     private BigDecimal getBalanceFromLastOperationByAccountId(UUID accountId) {

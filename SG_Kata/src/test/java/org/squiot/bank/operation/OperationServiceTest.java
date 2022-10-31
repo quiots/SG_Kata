@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.squiot.bank.exception.InsufficientBalanceException;
 import org.squiot.bank.exception.NegativeAmountException;
 import org.squiot.bank.operation.data.OperationDAO;
 
@@ -107,5 +108,70 @@ class OperationServiceTest {
         final BigDecimal expectedAmountValue = BigDecimal.valueOf(-100);
 
         assertThrows(NegativeAmountException.class,()-> operationService.deposit(accountId,expectedAmountValue));
+    }
+
+    @Test
+    @DisplayName("should withdraw a correct amount value")
+    void shouldWithdrawAmountOnAccount() throws NegativeAmountException, InsufficientBalanceException {
+        final LocalDateTime date = LocalDateTime.now(clock);
+        final UUID accountId = UUID.randomUUID();
+        final BigDecimal expectedAmountValue = BigDecimal.valueOf(100).setScale(2, RoundingMode.HALF_EVEN);
+        final Operation expectedOperation = new Operation(
+                OperationType.WITHDRAWAL,
+                accountId,
+                expectedAmountValue,
+                date,
+                BigDecimal.valueOf(250).setScale(2, RoundingMode.HALF_EVEN)
+        );
+
+        when(operationDAO.findLastOperationByAccountId(accountId))
+                .thenReturn(
+                        Optional.of(new Operation(
+                                OperationType.DEPOSIT,
+                                accountId,
+                                BigDecimal.valueOf(350).setScale(2,RoundingMode.HALF_EVEN),
+                                date,
+                                BigDecimal.valueOf(350).setScale(2, RoundingMode.HALF_EVEN)
+                        ))
+                );
+        when(operationDAO.create(expectedOperation)).thenReturn(expectedOperation);
+
+        final Operation returnedOperation = operationService.withdrawal(accountId,expectedAmountValue);
+
+        assertEquals(expectedOperation,returnedOperation);
+        final InOrder orderVerifier = inOrder(operationDAO);
+        orderVerifier.verify(operationDAO).findLastOperationByAccountId(accountId);
+        orderVerifier.verify(operationDAO).create(expectedOperation);
+        orderVerifier.verifyNoMoreInteractions();
+    }
+
+    @Test
+    @DisplayName("should throw negative amount exception when withdrawal negative amount")
+    void shouldThrowNegativeAmountExceptionWhenWithdrawNegativeAmount(){
+        final UUID accountId = UUID.randomUUID();
+        final BigDecimal expectedAmountValue = BigDecimal.valueOf(-100).setScale(2,RoundingMode.HALF_EVEN);
+
+        assertThrows(NegativeAmountException.class,()-> operationService.withdrawal(accountId,expectedAmountValue));
+    }
+
+    @Test
+    @DisplayName("should throw insufficient balance exception when withdrawing")
+    void shouldThrowInsufficientBalanceExceptionWhenBeingOverdraft() throws NegativeAmountException {
+        final LocalDateTime date = LocalDateTime.now(clock);
+        final UUID accountId = UUID.randomUUID();
+        final BigDecimal expectedAmountValue = BigDecimal.valueOf(400);
+
+        when(operationDAO.findLastOperationByAccountId(accountId))
+                .thenReturn(
+                        Optional.of(new Operation(
+                                OperationType.DEPOSIT,
+                                accountId,
+                                BigDecimal.valueOf(350),
+                                date,
+                                BigDecimal.valueOf(350).setScale(2, RoundingMode.HALF_EVEN)
+                        ))
+                );
+
+        assertThrows(InsufficientBalanceException.class,()-> operationService.withdrawal(accountId,expectedAmountValue));
     }
 }
