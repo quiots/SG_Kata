@@ -42,8 +42,8 @@ I want to see the history (data, date, amount, balance) of my operations
 - OperationType, un enum relatant les différentes opérations possibles, en l'occurrence un dépôt et un retrait.
 - OperationService, une classe service assurant les opérations de traitement sur nos données métiers
     
-<b>account</b> : Contient le record AccountStatement spécifiant les éléments propres au relevé de compte de notre exercice
-- AccountStatement
+<b>account</b> : 
+- AccountStatement, un record spécifiant les éléments propres au relevé de compte de notre exercice
 
 <b>writer</b> : Contient deux interfaces, l'une pour le formatage de notre relevé de compte et l'autre pour l'affichage de ce dernier. Deux implémentations respectives sont présentes; une classe d'implémentation pour formater les données sous forme de tableau et une classe d'implémentation pour afficher le relevé de compte formaté dans la console.
 - FormatterStatement
@@ -52,7 +52,7 @@ I want to see the history (data, date, amount, balance) of my operations
 - ConsoleWriterStatement
 
 
-Axes d'améliorations : Ajout d'une classe "Amount" permettant de gérer des montants pour la génération d'opérations avec les contraintes métiers adaptées (montant positif et au bon format pour traiter des valeurs monétaires). Affichage alternatif en utilisant PrintStream et non pas directement la classe System avec "System.print.out".
+Axes d'améliorations : Ajout d'une classe "Amount" permettant de gérer des montants pour la génération d'opérations avec les contraintes métiers adaptées (montant positif et au bon format pour traiter des valeurs monétaires). Affichage alternatif en utilisant PrintStream et non pas directement "System.print.out".
 
  # Environnement
   
