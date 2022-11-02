@@ -1,8 +1,11 @@
 package org.squiot.bank.operation;
 
+import org.squiot.bank.account.AccountStatement;
 import org.squiot.bank.exception.InsufficientBalanceException;
 import org.squiot.bank.exception.NegativeAmountException;
 import org.squiot.bank.operation.data.OperationDAO;
+import org.squiot.bank.writer.StatementFormatter;
+import org.squiot.bank.writer.StatementWriter;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -13,10 +16,14 @@ public class OperationService {
 
     private final OperationDAO operationDAO;
     private final Clock clock;
+    private final StatementFormatter statementFormatter;
+    private final StatementWriter statementWriter;
 
-    public OperationService(OperationDAO operationDAO, Clock clock) {
+    public OperationService(OperationDAO operationDAO, Clock clock,StatementFormatter statementFormatter,StatementWriter statementWriter) {
         this.operationDAO = operationDAO;
         this.clock = clock;
+        this.statementFormatter = statementFormatter;
+        this.statementWriter = statementWriter;
     }
 
     public Operation deposit(UUID accountId, BigDecimal amount) throws NegativeAmountException {
@@ -45,6 +52,19 @@ public class OperationService {
         final Operation operation = new Operation(OperationType.WITHDRAWAL, accountId, amount, LocalDateTime.now(clock), updatedBalance);
         return operationDAO.create(operation);
 
+    }
+
+    public void writeStatement(UUID accountId){
+        final AccountStatement accountStatement = new AccountStatement(
+                accountId,
+                LocalDateTime.now(clock),
+                operationDAO.findAllSortedOperationsByAccountId(accountId),
+                getBalanceFromLastOperationByAccountId(accountId)
+        );
+
+        statementWriter.write(
+                statementFormatter.formatStatement(accountStatement)
+        );
     }
 
     private BigDecimal getBalanceFromLastOperationByAccountId(UUID accountId) {

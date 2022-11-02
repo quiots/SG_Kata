@@ -8,6 +8,6 @@ import java.util.UUID;
 
 public interface OperationDAO {
     Optional<Operation> findLastOperationByAccountId(UUID accountId);
-
+    List<Operation> findAllSortedOperationsByAccountId(UUID accountId);
     Operation create(Operation operation);
 }

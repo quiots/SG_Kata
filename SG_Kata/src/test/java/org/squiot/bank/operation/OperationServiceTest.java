@@ -7,9 +7,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.squiot.bank.account.AccountStatement;
 import org.squiot.bank.exception.InsufficientBalanceException;
 import org.squiot.bank.exception.NegativeAmountException;
 import org.squiot.bank.operation.data.OperationDAO;
+import org.squiot.bank.writer.StatementFormatter;
+import org.squiot.bank.writer.StatementWriter;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,6 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,14 +33,17 @@ class OperationServiceTest {
 
     @Mock
     private OperationDAO operationDAO;
-
     private OperationService operationService;
+    @Mock
+    private StatementFormatter statementFormatter;
+    @Mock
+    private StatementWriter statementWriter;
 
     private final Clock clock = Clock.fixed(Instant.parse("2022-10-28T16:08:00.00Z"), ZoneOffset.UTC);
 
     @BeforeEach
     void initOperationService(){
-        operationService = new OperationService(operationDAO, clock);
+        operationService = new OperationService(operationDAO, clock,statementFormatter,statementWriter);
     }
 
     @Test
@@ -156,7 +163,7 @@ class OperationServiceTest {
 
     @Test
     @DisplayName("should throw insufficient balance exception when withdrawing")
-    void shouldThrowInsufficientBalanceExceptionWhenBeingOverdraft() throws NegativeAmountException {
+    void shouldThrowInsufficientBalanceExceptionWhenBeingOverdraft() {
         final LocalDateTime date = LocalDateTime.now(clock);
         final UUID accountId = UUID.randomUUID();
         final BigDecimal expectedAmountValue = BigDecimal.valueOf(400);
@@ -174,4 +181,40 @@ class OperationServiceTest {
 
         assertThrows(InsufficientBalanceException.class,()-> operationService.withdrawal(accountId,expectedAmountValue));
     }
+
+    @Test
+    void shouldWriteFormattedAccountStatement(){
+        final UUID accountId = UUID.randomUUID();
+        final List<Operation> operations =  List.of(
+                new Operation(
+                        OperationType.DEPOSIT,
+                        accountId,
+                        BigDecimal.valueOf(350).setScale(2,RoundingMode.HALF_EVEN),
+                        LocalDateTime.now(clock),
+                        BigDecimal.valueOf(350).setScale(2,RoundingMode.HALF_EVEN)
+                )
+        );
+        final List<String> formattedStatement = List.of(
+                "Operation 1"
+        );
+        final AccountStatement accountStatement = new AccountStatement(
+                accountId,
+                LocalDateTime.now(clock),
+                operations,
+                BigDecimal.valueOf(350).setScale(2,RoundingMode.HALF_EVEN)
+        );
+        when(operationDAO.findAllSortedOperationsByAccountId(accountId)).thenReturn(operations);
+        when(operationDAO.findLastOperationByAccountId(accountId)).thenReturn(Optional.ofNullable(operations.get(0)));
+        when(statementFormatter.formatStatement(accountStatement)).thenReturn(formattedStatement);
+
+        operationService.writeStatement(accountId);
+
+        final InOrder orderVerifier = inOrder(operationDAO,statementFormatter,statementWriter);
+        orderVerifier.verify(operationDAO).findAllSortedOperationsByAccountId(accountId);
+        orderVerifier.verify(operationDAO).findLastOperationByAccountId(accountId);
+        orderVerifier.verify(statementFormatter).formatStatement(accountStatement);
+        orderVerifier.verify(statementWriter).write(formattedStatement);
+        orderVerifier.verifyNoMoreInteractions();
+    }
+
 }
